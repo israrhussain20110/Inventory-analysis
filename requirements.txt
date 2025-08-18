@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pymongo
+pydantic
+pydantic-settings
+pandas
+numpy==1.26.4
+prophet
+python-dotenv
+streamlit
