@@ -62,6 +62,8 @@ period_input = st.sidebar.selectbox("Select Period for Turnover", ['daily', 'wee
 # --- Data Loading ---
 if st.sidebar.button("Load Data"):
     st.session_state.metrics = get_metrics(item_id_input, period_input)
+    print(f"Type of st.session_state.metrics: {type(st.session_state.metrics)}")
+    print(f"Content of st.session_state.metrics: {st.session_state.metrics}")
     st.session_state.slow_movers = get_slow_movers()
     st.session_state.stockout_heatmap_data = get_stockout_heatmap_data(item_id_input)
 
@@ -73,10 +75,11 @@ if 'metrics' in st.session_state and st.session_state.metrics:
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         
-        turnover_data = metrics.get('turnover', [])
-        if turnover_data:
-            # Assuming turnover_data is a list of dicts, e.g., [{'date': '...', 'turnover_ratio': X}]
-            # Extract turnover_ratio values and calculate the average
+        turnover_data = metrics.get('turnover', {})
+        if isinstance(turnover_data, dict):
+            avg_turnover = turnover_data.get('turnover_ratio', "N/A")
+            st.metric("Average Turnover Ratio", f"{avg_turnover:.2f}" if isinstance(avg_turnover, (int, float)) else avg_turnover)
+        elif isinstance(turnover_data, list):
             turnover_ratios = [item['turnover_ratio'] for item in turnover_data if 'turnover_ratio' in item]
             if turnover_ratios:
                 avg_turnover = sum(turnover_ratios) / len(turnover_ratios)
@@ -118,7 +121,7 @@ if 'metrics' in st.session_state and st.session_state.metrics and st.session_sta
     if isinstance(turnover_data_for_df, dict):
         turnover_data_for_df = [turnover_data_for_df] # Wrap single dict in a list
     turnover_df = pd.DataFrame(turnover_data_for_df)
-    if not turnover_df.empty and 'Date' in turnover_df.columns:
+    if not turnover_df.empty and 'date' in turnover_df.columns:
         chart = alt.Chart(turnover_df).mark_line().encode(
             x=alt.X('date:T', title='Date'),
             y=alt.Y('turnover_ratio:Q', title='Turnover Ratio'),
