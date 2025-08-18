@@ -1,0 +1,21 @@
+# Virtual environment
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# IDE settings
+.vscode/
+
+# Data files (if large or sensitive)
+data/retail_store_inventory.csv
+
+# Jupyter notebooks (if for exploration and not part of the main codebase)
+notebooks/
+
+# Typo in original .gitignore
+.gitnore
