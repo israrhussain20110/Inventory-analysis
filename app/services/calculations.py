@@ -44,7 +44,14 @@ def calculate_turnover(item_id: str = None, period: str = 'monthly'):
     turnover_df = (cogs_over_time / avg_inventory).reset_index()
     turnover_df.rename(columns={0: 'turnover_ratio'}, inplace=True)
 
-    return turnover_df.to_dict('records')
+    results = turnover_df.to_dict('records')
+
+    if item_id and results:
+        return results[0]
+    elif not item_id:
+        return results
+    else:
+        return {"turnover_ratio": 0, "message": "No data for the given item ID."}
 
 def calculate_stockout_rate(item_id: str = None):
     """
@@ -166,8 +173,10 @@ def calculate_days_of_supply(item_id: str = None):
 
     if item_id and results:
         return results[0]
-    
-    return results
+    elif not item_id:
+        return results
+    else:
+        return {"days_of_supply": 0, "message": "No data for the given item ID."}
 
 def calculate_carrying_cost(item_id: str = None, carrying_cost_rate: float = 0.20):
     """
@@ -201,8 +210,10 @@ def calculate_carrying_cost(item_id: str = None, carrying_cost_rate: float = 0.2
 
     if item_id and results:
         return results[0]
-        
-    return results
+    elif not item_id:
+        return results
+    else:
+        return {"carrying_cost": 0, "message": "No data for the given item ID."}
 
 def detect_slow_obsolete_items(
     slow_turnover_threshold: float = 2.0,
