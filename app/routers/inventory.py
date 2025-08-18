@@ -43,9 +43,26 @@ async def get_inventory_metrics(product_id: str = Query(None), period: str = Que
         stockout_rate = calculations.calculate_stockout_rate(None)
 
         # Aggregate results
-        turnover = {"turnover_ratio": sum([t.get("turnover_ratio", 0) for t in all_turnover]) / len(all_turnover) if all_turnover else 0}
-        days_of_supply = {"days_of_supply": sum([d.get("days_of_supply", 0) for d in all_days_of_supply]) / len(all_days_of_supply) if all_days_of_supply else 0}
-        carrying_cost = {"carrying_cost": sum([c.get("carrying_cost", 0) for c in all_carrying_cost]) if all_carrying_cost else 0}
+        if all_turnover:
+            valid_turnover_ratios = [t.get("turnover_ratio", 0) for t in all_turnover if isinstance(t, dict)]
+            turnover_value = sum(valid_turnover_ratios) / len(valid_turnover_ratios) if valid_turnover_ratios else 0
+            turnover = {"turnover_ratio": turnover_value}
+        else:
+            turnover = {"turnover_ratio": 0}
+
+        if all_days_of_supply:
+            valid_dos_values = [d.get("days_of_supply", 0) for d in all_days_of_supply if isinstance(d, dict)]
+            days_of_supply_value = sum(valid_dos_values) / len(valid_dos_values) if valid_dos_values else 0
+            days_of_supply = {"days_of_supply": days_of_supply_value}
+        else:
+            days_of_supply = {"days_of_supply": 0}
+
+        if all_carrying_cost:
+            valid_cc_values = [c.get("carrying_cost", 0) for c in all_carrying_cost if isinstance(c, dict)]
+            carrying_cost_value = sum(valid_cc_values) / len(valid_cc_values) if valid_cc_values else 0
+            carrying_cost = {"carrying_cost": carrying_cost_value}
+        else:
+            carrying_cost = {"carrying_cost": 0}
 
     return {
         "turnover": turnover,
