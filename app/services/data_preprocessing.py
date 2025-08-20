@@ -1,58 +1,95 @@
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+
+def preprocess_for_forecasting(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Preprocesses the DataFrame for forecasting, including column renaming,
+    categorical encoding, and numerical scaling.
+    """
+    if df.empty:
+        return df
+
+    # 1. Standardizing Column Names
+    column_rename_map = {
+        'InventoryLevel': 'Inventory',
+        'UnitsSold': 'Sales',
+        'Units Ordered': 'Orders',
+        'Demand Forecast': 'Demand',
+        'Weather Condition': 'Weather',
+        'Holiday/Promotion': 'Promotion',
+        'Competitor Pricing': 'Competitor Price'
+    }
+    df.rename(columns=column_rename_map, inplace=True)
+
+    # 2. Categorical Feature Encoding
+    categorical_cols = ['Category', 'Region', 'Weather', 'Seasonality', 'Promotion']
+    for col in categorical_cols:
+        if col in df.columns:
+            le = LabelEncoder()
+            df[col] = le.fit_transform(df[col].astype(str)) # Convert to string to handle NaNs if any
+
+    # 3. Numerical Feature Scaling
+    numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
+    numerical_cols = [col for col in numerical_cols if col not in categorical_cols]
+
+    if numerical_cols:
+        scaler = StandardScaler()
+        df[numerical_cols] = scaler.fit_transform(df[numerical_cols])
+
+    return df
 
 def preprocess_inventory_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Preprocesses inventory data DataFrame.
-    - Fills missing 'stock_level' with 0.
-    - Fills missing 'avg_cost' with its mean.
-    - Converts 'stock_level' and 'avg_cost' to numeric, coercing errors.
+    - Fills missing 'InventoryLevel' with 0.
+    - Converts 'InventoryLevel' to numeric, coercing errors.
     - Drops rows where critical numeric conversions failed.
-    - Converts 'date' to datetime, dropping rows with invalid dates.
+    - Converts 'Date' to datetime, dropping rows with invalid dates.
     """
     if df.empty:
         return df
 
     # Handle missing values
-    if 'Inventory Level' in df.columns:
-        df['Inventory Level'].fillna(0, inplace=True)
+    if 'InventoryLevel' in df.columns:
+        df['InventoryLevel'] = df['InventoryLevel'].fillna(0)
 
     # Convert to numeric, coercing errors
-    if 'Inventory Level' in df.columns:
-        df['Inventory Level'] = pd.to_numeric(df['Inventory Level'], errors='coerce')
+    if 'InventoryLevel' in df.columns:
+        df['InventoryLevel'] = pd.to_numeric(df['InventoryLevel'], errors='coerce')
 
     # Drop rows where critical numeric conversions failed
-    if 'Inventory Level' in df.columns:
-        df.dropna(subset=['Inventory Level'], inplace=True)
+    if 'InventoryLevel' in df.columns:
+        df = df.dropna(subset=['InventoryLevel'])
 
     # Ensure date column is datetime
-    if 'date' in df.columns:
-        df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        df.dropna(subset=['date'], inplace=True) # Drop rows with invalid dates
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df = df.dropna(subset=['Date']) # Drop rows with invalid dates
 
     return df
 
 def preprocess_sales_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Preprocesses sales data DataFrame.
-    - Converts 'COGS' and 'quantity' to numeric, coercing errors.
+    - Converts 'UnitsSold' to numeric, coercing errors.
     - Drops rows where critical numeric conversions failed.
-    - Converts 'date' to datetime, dropping rows with invalid dates.
+    - Converts 'Date' to datetime, dropping rows with invalid dates.
     """
     if df.empty:
         return df
 
     # Convert to numeric, coercing errors
-    for col in ['COGS', 'quantity']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+    if 'UnitsSold' in df.columns:
+        df['UnitsSold'] = pd.to_numeric(df['UnitsSold'], errors='coerce')
 
     # Drop rows where critical numeric conversions failed
-    df.dropna(subset=['COGS', 'quantity'], inplace=True)
+    if 'UnitsSold' in df.columns:
+        df = df.dropna(subset=['UnitsSold'])
 
     # Ensure date column is datetime
-    if 'date' in df.columns:
-        df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        df.dropna(subset=['date'], inplace=True)
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df = df.dropna(subset=['Date'])
 
     return df
 
@@ -61,7 +98,7 @@ def preprocess_stockouts_data(df: pd.DataFrame) -> pd.DataFrame:
     Preprocesses stockouts data DataFrame.
     - Converts 'duration' to numeric, coercing errors.
     - Drops rows where critical numeric conversions failed.
-    - Converts 'date' to datetime, dropping rows with invalid dates.
+    - Converts 'Date' to datetime, dropping rows with invalid dates.
     """
     if df.empty:
         return df
@@ -71,11 +108,12 @@ def preprocess_stockouts_data(df: pd.DataFrame) -> pd.DataFrame:
         df['duration'] = pd.to_numeric(df['duration'], errors='coerce')
 
     # Drop rows where critical numeric conversions failed
-    df.dropna(subset=['duration'], inplace=True)
+    if 'duration' in df.columns:
+        df = df.dropna(subset=['duration'])
 
     # Ensure date column is datetime
-    if 'date' in df.columns:
-        df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        df.dropna(subset=['date'], inplace=True)
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df = df.dropna(subset=['Date'])
 
     return df

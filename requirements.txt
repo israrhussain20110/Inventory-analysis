@@ -5,6 +5,6 @@ pydantic
 pydantic-settings
 pandas
 numpy==1.26.4
-prophet
+scikit-learn
 python-dotenv
 streamlit

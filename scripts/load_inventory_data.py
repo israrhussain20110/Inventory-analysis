@@ -8,8 +8,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import insert_data
 
 # Load CSV and insert into MongoDB
-df = pd.read_csv('data/retail_store_inventory.csv')
+df = pd.read_csv('data/inventory.csv')
 data = df.to_dict('records')
-insert_data(data, "sales")
+insert_data(data, "inventory")
 
-print("Data loaded into MongoDB successfully!")
+print("Inventory data loaded into MongoDB successfully!")

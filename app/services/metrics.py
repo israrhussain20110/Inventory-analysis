@@ -31,12 +31,16 @@ def calculate_metrics(store_id: int, product_id: int, db_data: list):
 
     # 1. Inventory Turnover Rates (Time Series)
     turnover_data = []
-    for date in df['Date'].unique():
-        daily_df = df[df['Date'] == date]
-        daily_sales = daily_df['Sales'].sum()
-        daily_inventory = daily_df['Inventory Level'].mean() # Or sum, depending on how inventory is recorded daily
-        daily_turnover = daily_sales / daily_inventory if daily_inventory > 0 else 0
-        turnover_data.append({'date': date.isoformat(), 'turnover_ratio': daily_turnover})
+    if 'Date' in df.columns and not df.empty:
+        for date in df['Date'].unique():
+            daily_df = df[df['Date'] == date]
+            daily_sales = daily_df['Units Sold'].sum()
+            daily_inventory = daily_df['Inventory Level'].mean()
+            daily_turnover = daily_sales / daily_inventory if daily_inventory > 0 else 0
+            turnover_data.append({'date': date.isoformat(), 'turnover_ratio': daily_turnover})
+
+    # Overall turnover for slow-moving/obsolete check
+    turnover = total_sales / avg_inventory if avg_inventory > 0 else 0
 
     # 2. Stockout Analysis
     stockout_count = (df['Inventory Level'] == 0).sum()

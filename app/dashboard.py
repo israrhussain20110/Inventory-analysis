@@ -1,4 +1,7 @@
-
+import os
+import sys
+# Add project root to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
 import requests
 import pandas as pd

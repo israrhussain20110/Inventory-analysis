@@ -1,36 +1,31 @@
-
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
 
-class ForecastRequest(BaseModel):
-    store_id: int
-    product_id: int
-    days: Optional[int] = 30  # Number of days to forecast
+class InventoryItem(BaseModel):
+    Date: str
+    ProductID: str = Field(..., alias='Product ID')
+    InventoryLevel: int = Field(..., alias='Inventory Level')
+
+    class Config:
+        populate_by_name = True
+
+class SalesRecord(BaseModel):
+    Date: str
+    ProductID: str = Field(..., alias='Product ID')
+    UnitsSold: int = Field(..., alias='Units Sold')
+    Price: float
+
+    class Config:
+        populate_by_name = True
 
 class MetricRequest(BaseModel):
-    store_id: int
-    product_id: int
+    store_id: str = Field(..., alias='Store ID')
+    product_id: str = Field(..., alias='Product ID')
 
 class DataStatusResponse(BaseModel):
     is_loaded: bool
     record_count: int
 
-class Inventory(BaseModel):
-    item_id: str = Field(..., alias="_id")
-    category: str
-    ABC_class: Optional[str] = None
-    stock_level: int
-    avg_cost: float
-
-class Sales(BaseModel):
-    item_id: str
-    date: datetime
-    quantity: int
-    revenue: float
-    COGS: float
-
-class Stockout(BaseModel):
-    item_id: str
-    date: datetime
-    duration: Optional[float] = None
+class ForecastRequest(BaseModel):
+    store_id: str = Field(..., alias='Store ID')
+    product_id: str = Field(..., alias='Product ID')

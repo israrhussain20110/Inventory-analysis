@@ -1,3 +1,7 @@
+import os
+import sys
+# Add project root to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query
 from fastapi.responses import StreamingResponse
