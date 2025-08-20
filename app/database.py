@@ -5,8 +5,7 @@ import sys
 # Add project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from typing import List, Type
-from pydantic import ValidationError
+from typing import List, Type, Any
 from app.models import InventoryItem, SalesRecord
 
 load_dotenv()
@@ -26,8 +25,7 @@ def insert_data(data, collection_name: str):
 
 def get_validated_data(collection_name: str, model: Type, query: dict = None) -> List:
     """
-    Retrieves and validates data from a specified MongoDB collection
-    using a Pydantic model.
+    Retrieves data from a specified MongoDB collection without Pydantic validation.
     """
     if query is None:
         query = {}
@@ -35,18 +33,18 @@ def get_validated_data(collection_name: str, model: Type, query: dict = None) ->
     collection = db[collection_name]
     data = list(collection.find(query))
     
-    validated_data = []
+    # Remove _id field from each item if present
     for item in data:
-        try:
-            validated_data.append(model.parse_obj(item))
-        except ValidationError as e:
-            print(f"Skipping document due to validation error: {e}")
-            continue
+        if '_id' in item:
+            del item['_id']
             
-    return validated_data
+    return data
 
 def get_data(collection_name: str, query=None):
-    """Retrieve data from a specified MongoDB collection."""
+    """
+    Retrieve data from a specified MongoDB collection.
+    This function is kept for compatibility but get_validated_data is preferred.
+    """
     if query is None:
         query = {}
     collection = db[collection_name]

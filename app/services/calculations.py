@@ -24,9 +24,9 @@ def calculate_turnover(item_id: str = None, period: str = 'monthly'):
     if not inventory_data or not sales_data:
         return {"error": "Insufficient data for calculation."}
 
-    df_inventory = pd.DataFrame([item.dict() for item in inventory_data])
+    df_inventory = pd.DataFrame(inventory_data).copy()
     df_inventory = preprocess_inventory_data(df_inventory)
-    df_sales = pd.DataFrame([record.dict() for record in sales_data])
+    df_sales = pd.DataFrame(sales_data).copy()
     df_sales = preprocess_sales_data(df_sales)
 
     if 'InventoryLevel' not in df_inventory.columns:
@@ -72,10 +72,10 @@ def calculate_stockout_rate(item_id: str = None):
     if not sales_data:
         return {"error": "No sales data found for the given query."}
 
-    df_stockouts = pd.DataFrame([item.dict() for item in stockouts_data])
+    df_stockouts = pd.DataFrame([item.dict() for item in stockouts_data]).copy()
     df_stockouts = preprocess_stockouts_data(df_stockouts)
 
-    df_sales = pd.DataFrame([record.dict() for record in sales_data])
+    df_sales = pd.DataFrame(sales_data).copy()
     df_sales = preprocess_sales_data(df_sales)
 
     num_stockouts = len(df_stockouts)
@@ -111,7 +111,7 @@ def calculate_stockout_heatmap_data(item_id: str = None):
     if not stockouts_data:
         return []
 
-    df = pd.DataFrame([item.dict() for item in stockouts_data])
+    df = pd.DataFrame([item.dict() for item in stockouts_data]).copy()
     df = preprocess_stockouts_data(df)
     
     df['month'] = df['Date'].dt.to_period('M').astype(str)
@@ -131,9 +131,9 @@ def calculate_days_of_supply(item_id: str = None):
     if not inventory_data or not sales_data:
         return {"error": "Insufficient data."}
 
-    df_inventory = pd.DataFrame([item.dict() for item in inventory_data])
+    df_inventory = pd.DataFrame(inventory_data).copy()
     df_inventory = preprocess_inventory_data(df_inventory)
-    df_sales = pd.DataFrame([record.dict() for record in sales_data])
+    df_sales = pd.DataFrame(sales_data).copy()
     df_sales = preprocess_sales_data(df_sales)
 
     if 'InventoryLevel' not in df_inventory.columns or 'ProductID' not in df_inventory.columns:
@@ -186,7 +186,7 @@ def calculate_carrying_cost(item_id: str = None, carrying_cost_rate: float = 0.2
     if not inventory_data:
         return {"error": "No inventory data found."}
 
-    df_inventory = pd.DataFrame([item.dict() for item in inventory_data])
+    df_inventory = pd.DataFrame(inventory_data).copy()
     df_inventory = preprocess_inventory_data(df_inventory)
 
     if 'InventoryLevel' not in df_inventory.columns or 'ProductID' not in df_inventory.columns:
@@ -225,7 +225,10 @@ def detect_slow_obsolete_items(
     if not inventory_data:
         return {"error": "No inventory data found."}
 
-    df_inventory = pd.DataFrame([item.dict() for item in inventory_data])
+    df_inventory = pd.DataFrame(inventory_data).copy()
+    print("Columns before preprocessing:", df_inventory.columns) # Debug print
+    df_inventory = preprocess_inventory_data(df_inventory)
+    print("Columns after preprocessing:", df_inventory.columns) # Debug print
     all_item_ids = df_inventory['ProductID'].unique()
 
     slow_movers = []
@@ -250,7 +253,7 @@ def detect_slow_obsolete_items(
             obsolete_items.append(item_id)
             continue
 
-        df_sales = pd.DataFrame([record.dict() for record in sales_data])
+        df_sales = pd.DataFrame(sales_data).copy()
         df_sales['Date'] = pd.to_datetime(df_sales['Date'])
         last_sale_date = df_sales['Date'].max()
 

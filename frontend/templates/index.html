@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Forecasting Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            padding-top: 56px; /* Adjust for fixed navbar */
+            background-color: #f0f2f5;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .card {
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+        .card-header {
+            background-color: #e9ecef;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+            border-top-left-radius: 0.75rem;
+            border-top-right-radius: 0.75rem;
+        }
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .footer {
+            padding: 20px 0;
+            text-align: center;
+            background-color: #343a40;
+            color: white;
+            margin-top: 40px;
+        }
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#"><i class="fas fa-chart-line me-2"></i>Inventory Dashboard</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="#"><i class="fas fa-home me-1"></i>Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-calculator me-1"></i>Metrics</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-file-alt me-1"></i>Reports</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <div class="container mt-4">
+        <h1 class="mb-4 text-center text-primary">Inventory Forecasting Dashboard</h1>
+        <p class="lead text-center mb-5">Gain insights into inventory metrics and forecasting to optimize your retail operations.</p>
+
+        <div class="row">
+            <!-- Overall Metrics Card -->
+            <div class="col-md-4">
+                <div class="card mb-4 h-100">
+                    <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Overall Metrics</div>
+                    <div class="card-body d-flex flex-column justify-content-between" id="overallMetricsCardBody">
+                        <div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slow Movers & Obsolete Items Card -->
+            <div class="col-md-4">
+                <div class="card mb-4 h-100">
+                    <div class="card-header"><i class="fas fa-truck-loading me-2"></i>Slow Movers & Obsolete Items</div>
+                    <div class="card-body d-flex flex-column justify-content-between" id="slowMoversCardBody">
+                        <div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stockout Analysis Card -->
+            <div class="col-md-4">
+                <div class="card mb-4 h-100">
+                    <div class="card-header"><i class="fas fa-exclamation-triangle me-2"></i>Stockout Analysis</div>
+                    <div class="card-body d-flex flex-column justify-content-between" id="stockoutsCardBody">
+                        <div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demand Forecast Section -->
+        <div class="row mt-5">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header"><i class="fas fa-chart-line me-2"></i>Demand Forecast</div>
+                    <div class="card-body">
+                        <form id="forecastForm" class="mb-4">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="storeId" class="form-label">Store ID</label>
+                                    <input type="text" class="form-control" id="storeId" value="Store_1" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="productId" class="form-label">Product ID</label>
+                                    <input type="text" class="form-control" id="productId" value="Product_1" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="granularity" class="form-label">Granularity</label>
+                                    <select class="form-select" id="granularity">
+                                        <option value="monthly" selected>Monthly</option>
+                                        <option value="daily">Daily</option>
+                                        <option value="quarterly">Quarterly</option>
+                                        <option value="yearly">Yearly</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="modelType" class="form-label">Model Type</label>
+                                    <select class="form-select" id="modelType">
+                                        <option value="linear_regression" selected>Linear Regression</option>
+                                        <option value="random_forest">Random Forest</option>
+                                        <option value="svm">SVM</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mt-3 text-end">
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-chart-line me-2"></i>Generate Forecast</button>
+                            </div>
+                        </form>
+                        <div id="forecastChartContainer" style="position: relative; height:400px; width:100%">
+                            <canvas id="forecastChart"></canvas>
+                        </div>
+                        <div id="forecastError" class="alert alert-danger mt-3 d-none" role="alert"></div>
+                        <div id="forecastLoading" class="loading-spinner d-none">
+                            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <span class="text-white">Inventory Forecasting Dashboard &copy; 2025</span>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle (Popper.js and Bootstrap JS) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Helper function to update card content
+        function updateCard(cardBodyId, content) {
+            document.getElementById(cardBodyId).innerHTML = content;
+        }
+
+        let forecastChartInstance = null; // To store the Chart.js instance
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch Overall Metrics
+            fetch('/api/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        updateCard('overallMetricsCardBody', `<p class="text-danger">Error: ${data.error}</p>`);
+                    } else {
+                        updateCard('overallMetricsCardBody', `
+                            <p><span class="metric-value">${data.carrying_cost.carrying_cost.toFixed(2)}</span> <span class="metric-label">Carrying Cost</span></p>
+                            <p><span class="metric-value">${data.turnover.turnover_ratio.toFixed(2)}</span> <span class="metric-label">Turnover Ratio</span></p>
+                            <p><span class="metric-value">${data.days_of_supply.days_of_supply.toFixed(2)}</span> <span class="metric-label">Days of Supply</span></p>
+                        `);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching metrics:', error);
+                    updateCard('overallMetricsCardBody', '<p class="text-danger">Failed to load metrics.</p>');
+                });
+
+            // Fetch Slow Movers & Obsolete Items
+            fetch('/api/slow_movers')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        updateCard('slowMoversCardBody', `<p class="text-danger">Error: ${data.error}</p>`);
+                    } else if (data.slow_movers.length > 0 || data.obsolete_items.length > 0) {
+                        updateCard('slowMoversCardBody', `
+                            <p><strong>Slow Movers:</strong> ${data.slow_movers.join(', ') || 'None'}</p>
+                            <p><strong>Obsolete Items:</strong> ${data.obsolete_items.join(', ') || 'None'}</p>
+                        `);
+                    } else {
+                        updateCard('slowMoversCardBody', '<p>No slow-moving or obsolete items detected.</p>');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching slow movers:', error);
+                    updateCard('slowMoversCardBody', '<p class="text-danger">Failed to load slow movers data.</p>');
+                });
+
+            // Fetch Stockout Analysis
+            fetch('/api/stockouts')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        updateCard('stockoutsCardBody', `<p class="text-warning">${data.error}</p>`);
+                    } else {
+                        updateCard('stockoutsCardBody', `
+                            <p><span class="metric-value">${(data.stockout_rate * 100).toFixed(2)}%</span> <span class="metric-label">Stockout Rate</span></p>
+                            <p><span class="metric-value">${data.stockout_frequency}</span> <span class="metric-label">Stockout Frequency</span></p>
+                            <p><span class="metric-value">${data.average_duration.toFixed(2)}</span> <span class="metric-label">Average Duration (Days)</span></p>
+                        `);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching stockouts:', error);
+                    updateCard('stockoutsCardBody', '<p class="text-danger">Failed to load stockout data.</p>');
+                });
+
+            // Forecast Form Submission
+            const forecastForm = document.getElementById('forecastForm');
+            const forecastChartCanvas = document.getElementById('forecastChart');
+            const forecastErrorDiv = document.getElementById('forecastError');
+            const forecastLoadingDiv = document.getElementById('forecastLoading');
+
+            forecastForm.addEventListener('submit', async function(event) {
+                event.preventDefault(); // Prevent default form submission
+
+                forecastErrorDiv.classList.add('d-none'); // Hide any previous errors
+                forecastLoadingDiv.classList.remove('d-none'); // Show loading spinner
+
+                const storeId = document.getElementById('storeId').value;
+                const productId = document.getElementById('productId').value;
+                const granularity = document.getElementById('granularity').value;
+                const modelType = document.getElementById('modelType').value; // Get model type
+
+                try {
+                    const response = await fetch('/forecast', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ store_id: storeId, product_id: productId, granularity: granularity, model_type: modelType }) // Send model type
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Failed to fetch forecast');
+                    }
+
+                    if (result.forecast && result.forecast.length > 0) {
+                        const labels = result.forecast.map(item => item.Date);
+                        const actualSales = result.forecast.map(item => item.actual_sales);
+                        const predictedSales = result.forecast.map(item => item.yhat);
+
+                        if (forecastChartInstance) {
+                            forecastChartInstance.destroy(); // Destroy existing chart instance
+                        }
+
+                        forecastChartInstance = new Chart(forecastChartCanvas, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    {
+                                        label: 'Actual Sales',
+                                        data: actualSales,
+                                        borderColor: 'rgba(75, 192, 192, 1)',
+                                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                        fill: false,
+                                        tension: 0.1
+                                    },
+                                    {
+                                        label: 'Predicted Sales',
+                                        data: predictedSales,
+                                        borderColor: 'rgba(153, 102, 255, 1)',
+                                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                                        fill: false,
+                                        tension: 0.1
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: {
+                                        type: 'time',
+                                        time: {
+                                            unit: granularity === 'daily' ? 'day' : (granularity === 'monthly' ? 'month' : (granularity === 'quarterly' ? 'quarter' : 'year')),
+                                            tooltipFormat: 'll'
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: 'Date'
+                                        }
+                                    },
+                                    y: {
+                                        title: {
+                                            display: true,
+                                            text: 'Sales'
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        forecastErrorDiv.textContent = 'No forecast data available for the selected criteria.';
+                        forecastErrorDiv.classList.remove('d-none');
+                        if (forecastChartInstance) {
+                            forecastChartInstance.destroy();
+                            forecastChartInstance = null;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error generating forecast:', error);
+                    forecastErrorDiv.textContent = `Error: ${error.message || 'An unknown error occurred.'}`;                    forecastErrorDiv.classList.remove('d-none');
+                    if (forecastChartInstance) {
+                        forecastChartInstance.destroy();
+                        forecastChartInstance = null;
+                    }
+                } finally {
+                    forecastLoadingDiv.classList.add('d-none'); // Hide loading spinner
+                }
+            });
+        });
+    </script>
+</body>
+</html>

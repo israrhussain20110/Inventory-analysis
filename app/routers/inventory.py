@@ -103,7 +103,17 @@ async def get_slow_movers_report():
     """
     data = calculations.detect_slow_obsolete_items()
     if "error" in data:
-        raise HTTPException(status_code=500, detail=data["error"])
+        # If there's an error indicating no data, return an empty CSV
+        if data["error"] == "No inventory data found.":
+            df = pd.DataFrame(columns=['Product ID', 'status'])
+            stream = io.StringIO()
+            df.to_csv(stream, index=False)
+            response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
+            response.headers["Content-Disposition"] = "attachment; filename=slow_movers_report.csv"
+            return response
+        else:
+            # For other errors, raise HTTPException
+            raise HTTPException(status_code=500, detail=data["error"])
 
     slow_movers_df = pd.DataFrame(data['slow_movers'], columns=['Product ID'])
     slow_movers_df['status'] = 'slow-moving'

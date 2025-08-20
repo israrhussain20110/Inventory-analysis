@@ -15,7 +15,7 @@ async def predict_inventory(request: ForecastRequest):
     This endpoint now returns a structured JSON response containing the forecast,
     and it gracefully handles cases where the forecast might not be a DataFrame.
     """
-    forecast_result = forecast_inventory(request)
+    forecast_result = forecast_inventory(request, request.granularity) # Pass granularity
     
     if isinstance(forecast_result, dict) and "error" in forecast_result:
         raise HTTPException(status_code=404, detail=forecast_result["error"])

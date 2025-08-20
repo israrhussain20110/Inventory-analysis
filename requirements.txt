@@ -8,3 +8,4 @@ numpy==1.26.4
 scikit-learn
 python-dotenv
 streamlit
+requests
