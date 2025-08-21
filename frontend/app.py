@@ -33,19 +33,24 @@ def get_forecast():
     product_id = data.get('product_id')
     granularity = data.get('granularity', 'monthly') # Default to monthly
 
+    model_type = data.get('model_type', 'linear_regression') # Get model_type from request
+
     if not store_id or not product_id:
         return jsonify({"error": "Store ID and Product ID are required."}), 400
 
-    fastapi_url = f"{FASTAPI_BASE_URL}/predict" # Direct call to /predict
+    fastapi_url = f"{FASTAPI_BASE_URL}/forecasting/predict" # Corrected call to /forecasting/predict
 
     payload = {
-        "store_id": store_id,
-        "product_id": product_id,
-        "granularity": granularity
+        "Store ID": store_id,  # Changed key
+        "Product ID": product_id, # Changed key
+        "granularity": granularity,
+        "model_type": model_type # Include model_type in payload
     }
 
     try:
         response = requests.post(fastapi_url, json=payload)
+        print(f"FastAPI response status code: {response.status_code}") # Debug print
+        print(f"FastAPI response text: {response.text}") # Debug print
         response.raise_for_status()
         return jsonify(response.json())
     except requests.exceptions.RequestException as e:

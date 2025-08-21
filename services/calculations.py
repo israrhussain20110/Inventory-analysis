@@ -1,13 +1,10 @@
 import pandas as pd
 import os
 import sys
-# Add project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from app.database import get_validated_data
-from app.models import InventoryItem, SalesRecord
+from database import get_validated_data
+from models import InventoryItem, SalesRecord
 from datetime import datetime, timedelta
-from app.services.data_preprocessing import preprocess_inventory_data, preprocess_sales_data, preprocess_stockouts_data
+from services.data_preprocessing import preprocess_inventory_data, preprocess_sales_data, preprocess_stockouts_data
 
 def calculate_turnover(item_id: str = None, period: str = 'monthly'):
     """
@@ -72,7 +69,7 @@ def calculate_stockout_rate(item_id: str = None):
     if not sales_data:
         return {"error": "No sales data found for the given query."}
 
-    df_stockouts = pd.DataFrame([item.dict() for item in stockouts_data]).copy()
+    df_stockouts = pd.DataFrame(stockouts_data).copy()
     df_stockouts = preprocess_stockouts_data(df_stockouts)
 
     df_sales = pd.DataFrame(sales_data).copy()

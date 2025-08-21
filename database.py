@@ -2,11 +2,8 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 import sys
-# Add project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from typing import List, Type, Any
-from app.models import InventoryItem, SalesRecord
+from models import InventoryItem, SalesRecord
 
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -18,6 +15,8 @@ def insert_data(data, collection_name: str):
     """Insert data into a specified MongoDB collection."""
     try:
         collection = db[collection_name]
+        # Clear existing data in the collection
+        collection.delete_many({})
         collection.insert_many(data, ordered=False)
         print(f"Data inserted successfully into {collection_name}.")
     except Exception as e:

@@ -4,11 +4,9 @@ from sklearn.svm import SVR # New import
 import pandas as pd
 import os
 import sys
-# Add project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.database import get_validated_data
-from app.models import ForecastRequest, SalesRecord
-from app.services.data_preprocessing import preprocess_for_forecasting
+from database import get_validated_data
+from models import ForecastRequest, SalesRecord
+from services.data_preprocessing import preprocess_for_forecasting
 
 def forecast_inventory(request: ForecastRequest, granularity: str = "monthly"):
     """
@@ -25,6 +23,10 @@ def forecast_inventory(request: ForecastRequest, granularity: str = "monthly"):
         return {"error": "No data found for the given store and product."}
 
     df = pd.DataFrame(raw_data)
+
+    # Rename 'UnitsSold' to 'Sales' for forecasting
+    if 'UnitsSold' in df.columns:
+        df.rename(columns={'UnitsSold': 'Sales'}, inplace=True)
 
     # Ensure 'Date' column is in datetime format before resampling
     if 'Date' in df.columns:

@@ -1,9 +1,7 @@
 import sys
 import os
 from fastapi import FastAPI
-# Add project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.routers import forecasting, metrics, data, inventory
+from routers import forecasting, metrics, data, inventory
 
 app = FastAPI(
     title="Inventory Forecasting API",

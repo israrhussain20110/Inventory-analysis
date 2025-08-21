@@ -1,10 +1,8 @@
 import os
 import sys
-# Add project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import APIRouter, HTTPException
-from app.services.forecasting import forecast_inventory
-from app.models import ForecastRequest
+from services.forecasting import forecast_inventory
+from models import ForecastRequest
 import pandas as pd
 
 router = APIRouter()

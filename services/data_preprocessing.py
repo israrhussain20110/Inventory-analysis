@@ -12,14 +12,14 @@ def preprocess_for_forecasting(df: pd.DataFrame) -> pd.DataFrame:
     # 1. Standardizing Column Names
     column_rename_map = {
         'InventoryLevel': 'Inventory',
-        'UnitsSold': 'Sales',
+        'Units Sold': 'Sales',
         'Units Ordered': 'Orders',
         'DemandForecast': 'Demand',
         'WeatherCondition': 'Weather',
         'HolidayPromotion': 'Promotion',
         'CompetitorPricing': 'Competitor Price'
     }
-    df.rename(columns=column_rename_map, inplace=True)
+    df.rename(columns={k: v for k, v in column_rename_map.items() if k in df.columns}, inplace=True)
 
     # 2. Categorical Feature Encoding
     categorical_cols = ['Category', 'Region', 'Weather', 'Seasonality', 'Promotion']
@@ -88,6 +88,8 @@ def preprocess_sales_data(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
+    df = df.copy() # Ensure we are working on a copy to avoid SettingWithCopyWarning
+
     # Rename columns to match Pydantic model field names
     column_rename_map = {
         'Product ID': 'ProductID',
@@ -121,6 +123,8 @@ def preprocess_stockouts_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     if df.empty:
         return df
+
+    df = df.copy() # Ensure we are working on a copy to avoid SettingWithCopyWarning
 
     # Rename columns to match Pydantic model field names (from SalesRecord)
     column_rename_map = {

@@ -1,12 +1,9 @@
 from fastapi import APIRouter
 import os
 import sys
-# Add project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from app.services.metrics import calculate_metrics
-from app.models import MetricRequest
-from app.database import get_data
+from services.metrics import calculate_metrics
+from models import MetricRequest
+from database import get_data
 
 router = APIRouter()
 

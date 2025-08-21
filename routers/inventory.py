@@ -1,16 +1,29 @@
 import os
 import sys
-# Add project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from app.database import insert_data
-from app.services import calculations
+from database import insert_data, db # Added db import
+from services import calculations
 import pandas as pd
 import io
 
 router = APIRouter()
+
+@router.get("/all")
+async def get_all_inventory():
+    """
+    Retrieves all inventory records from the database.
+    """
+    inventory_data = list(db["inventory"].find({}, {"_id": 0})) # Exclude _id field
+    return inventory_data
+
+@router.get("/stockouts/all")
+async def get_all_stockouts():
+    """
+    Retrieves all stockout records from the database.
+    """
+    stockouts_data = list(db["stockouts"].find({}, {"_id": 0})) # Exclude _id field
+    return stockouts_data
 
 @router.post("/upload/inventory")
 async def upload_inventory(file: UploadFile = File(...)):
