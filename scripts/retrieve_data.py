@@ -1,26 +1,23 @@
 import sys
 import os
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from database import db # Import the db object directly
 
 def retrieve_and_display_data():
-    print("\n--- Retrieving Inventory Data ---")
-    inventory_collection = db["inventory"]
-    inventory_data = list(inventory_collection.find({}).limit(5)) # Retrieve first 5 documents for demonstration
-    if inventory_data:
-        for item in inventory_data:
-            print(item)
+    print("\n--- Retrieving ALL Retail Data ---")
+    retail_collection = db["retail_data"]
+    retail_data = list(retail_collection.find({}))
+    if retail_data:
+        print(f"Total retail_data documents: {len(retail_data)}")
+        for i, item in enumerate(retail_data):
+            if i < 10:
+                print(item)
+            else:
+                break
     else:
-        print("No inventory data found.")
-
-    print("\n--- Retrieving Stockouts Data ---")
-    stockouts_collection = db["stockouts"]
-    stockouts_data = list(stockouts_collection.find({}).limit(5)) # Retrieve first 5 documents for demonstration
-    if stockouts_data:
-        for item in stockouts_data:
-            print(item)
-    else:
-        print("No stockouts data found.")
+        print("No retail_data found.")
 
 if __name__ == "__main__":
     retrieve_and_display_data()

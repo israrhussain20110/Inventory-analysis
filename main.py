@@ -1,7 +1,8 @@
 import sys
 import os
 from fastapi import FastAPI
-from routers import forecasting, metrics, data, inventory
+from routers import metrics, data, inventory
+from database import create_indexes
 
 app = FastAPI(
     title="Inventory Forecasting API",
@@ -9,11 +10,16 @@ app = FastAPI(
     version="0.1.0"
 )
 
+@app.on_event("startup")
+async def startup_event():
+    create_indexes()
+
 # Include routers for different tasks
-app.include_router(forecasting.router, prefix="/forecasting", tags=["forecasting"])
-app.include_router(metrics.router, prefix="/metrics", tags=["metrics"])
+
+
 app.include_router(data.router, prefix="/data", tags=["data"])
 app.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
+app.include_router(metrics.router, prefix="/metrics", tags=["metrics"])
 
 @app.get("/", tags=["root"])
 async def read_root():

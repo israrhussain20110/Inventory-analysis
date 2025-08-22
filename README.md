@@ -33,9 +33,7 @@ This project provides an advanced inventory forecasting and management system us
 4. **Set up environment variables:**
     Create a `.env` file in the root directory and add your MongoDB URI:
 
-     ```
     MONGO_URI="mongodb://localhost:27017/"
-    ```
 
 ## How to Run
 

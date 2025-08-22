@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slow-Moving & Obsolete Stock</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Inventory Analysis</a>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/inventory">Inventory Explorer</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/slow_movers">Slow Movers</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload">Upload Data</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h1>Slow-Moving & Obsolete Stock</h1>
+
+        <form method="get" class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label for="slow_turnover_threshold" class="form-label">Slow Turnover Threshold</label>
+                <input type="number" step="0.1" name="slow_turnover_threshold" id="slow_turnover_threshold" class="form-control" value="{{ slow_turnover_threshold }}">
+            </div>
+            <div class="col-md-4">
+                <label for="dos_threshold" class="form-label">Days of Supply Threshold</label>
+                <input type="number" name="dos_threshold" id="dos_threshold" class="form-control" value="{{ dos_threshold }}">
+            </div>
+            <div class="col-md-4">
+                <label for="inactivity_days" class="form-label">Inactivity Days</label>
+                <input type="number" name="inactivity_days" id="inactivity_days" class="form-control" value="{{ inactivity_days }}">
+            </div>
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-primary">Update</button>
+                <a href="/inventory/slow_movers/report" class="btn btn-secondary">Download Report</a>
+            </div>
+        </form>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h2>Slow-Moving Items</h2>
+                <ul class="list-group">
+                    {% for item in data.slow_movers %}
+                    <li class="list-group-item">{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h2>Obsolete Items</h2>
+                <ul class="list-group">
+                    {% for item in data.obsolete_items %}
+                    <li class="list-group-item">{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

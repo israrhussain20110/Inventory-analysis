@@ -1,56 +1,112 @@
 import pandas as pd
 import os
 import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database import get_validated_data
-from models import InventoryItem, SalesRecord
+from models import RetailData
 from datetime import datetime, timedelta
 from services.data_preprocessing import preprocess_inventory_data, preprocess_sales_data, preprocess_stockouts_data
+import json
+from pydantic import BaseModel
 
-def calculate_turnover(item_id: str = None, period: str = 'monthly'):
-    """
-    Calculates the inventory turnover ratio over a specified period.
-    Turnover = COGS / Avg Inventory
-    """
+# Load API descriptions
+try:
+    with open("api_descriptions.json", "r") as f:
+        API_DESCRIPTIONS = json.load(f)
+except FileNotFoundError:
+    API_DESCRIPTIONS = {} # Handle case where file is not found
+except json.JSONDecodeError:
+    API_DESCRIPTIONS = {} # Handle case where JSON is invalid
+
+def _add_description_to_output(output, metric_key: str):
+    if not API_DESCRIPTIONS:
+        return output
+
+    metric_output_key = ""
+    if metric_key in ["turnover", "stockout_rate", "days_of_supply", "carrying_cost"]:
+        metric_output_key = "inventory_metrics_output"
+    elif metric_key in ["slow_movers", "obsolete_items"]:
+        metric_output_key = "slow_obsolete_items_output"
+    else:
+        return output # No description found
+
+    if metric_output_key not in API_DESCRIPTIONS:
+        return output
+
+    sections = API_DESCRIPTIONS[metric_output_key].get("sections", [])
+    
+    target_section = None
+    for section in sections:
+        if section.get("key") == metric_key:
+            target_section = section
+            break
+    
+    if not target_section:
+        return output
+
+    description_to_add = target_section.get("description", "")
+
+    if isinstance(output, dict):
+        if "error" in output: # Don't add description to error messages
+            return output
+        output["description"] = description_to_add
+    elif isinstance(output, list):
+        for item in output:
+            if isinstance(item, dict):
+                item["description"] = description_to_add
+    return output
+
+def calculate_turnover(item_id: str = None, category: str = None, abc_class: str = None, period: str = 'monthly'):
     query = {}
     if item_id:
         query["ProductID"] = item_id
+    if category:
+        query["Category"] = category
+    if abc_class:
+        query["abc_class"] = abc_class
 
-    inventory_data = get_validated_data("inventory", InventoryItem, query)
-    sales_data = get_validated_data("sales", SalesRecord, query)
+    retail_data = get_validated_data(RetailData, "retail_data", query)
 
-    if not inventory_data or not sales_data:
+    if not retail_data:
         return {"error": "Insufficient data for calculation."}
 
-    df_inventory = pd.DataFrame(inventory_data).copy()
-    df_inventory = preprocess_inventory_data(df_inventory)
-    df_sales = pd.DataFrame(sales_data).copy()
-    df_sales = preprocess_sales_data(df_sales)
+    df = pd.DataFrame([item.dict() for item in retail_data]).copy()
+    df = preprocess_inventory_data(df) # This preprocesses the entire dataframe
 
-    if 'InventoryLevel' not in df_inventory.columns:
-        return {"error": "Inventory data is missing required 'InventoryLevel' column."}
+    # Ensure necessary columns exist after preprocessing
+    if 'Inventory' not in df.columns or 'Sales' not in df.columns or 'Price' not in df.columns:
+        return {"error": "Required columns (Inventory, Sales, Price) missing after preprocessing."}
 
-    if 'UnitsSold' not in df_sales.columns or 'Price' not in df_sales.columns or 'Date' not in df_sales.columns:
-        return {"error": "Sales data is missing required 'UnitsSold', 'Price', or 'Date' columns."}
+    # Calculate COGS (Cost of Goods Sold)
+    df['COGS'] = df['Sales'] * df['Price']
 
-    df_sales['COGS'] = df_sales['Price'] * df_sales['UnitsSold']
-    df_sales['Date'] = pd.to_datetime(df_sales['Date'])
-    df_sales.set_index('Date', inplace=True)
+    # Calculate Average Inventory Value
+    # Assuming 'cost' is already calculated and present in the dataframe from load_csv_to_db.py
+    # If not, it needs to be calculated here or in preprocessing
+    if 'cost' not in df.columns:
+        df['cost'] = df['Price'] * 0.8 # Fallback if 'cost' is not present
 
-    cogs_over_time = df_sales['COGS'].resample(period[0].upper()).sum()
-    avg_inventory = df_inventory['InventoryLevel'].mean()
+    df['InventoryValue'] = df['Inventory'] * df['cost']
+    avg_inventory_value = df['InventoryValue'].mean()
 
-    if avg_inventory == 0:
-        return pd.DataFrame({'turnover_ratio': [float('inf')] * len(cogs_over_time)}, index=cogs_over_time.index)
+    if pd.isna(avg_inventory_value) or avg_inventory_value == 0:
+        return {"error": "Average inventory value is zero or undefined, cannot calculate turnover."}
 
-    turnover_df = (cogs_over_time / avg_inventory).reset_index()
+    # Resample COGS by period
+    df['Date'] = pd.to_datetime(df['Date'])
+    df.set_index('Date', inplace=True)
+    cogs_over_time = df['COGS'].resample(period[0].upper()).sum()
+
+    turnover_df = (cogs_over_time / avg_inventory_value).reset_index()
     turnover_df.rename(columns={0: 'turnover_ratio'}, inplace=True)
+    turnover_df.replace([float('inf'), -float('inf')], None, inplace=True)
 
     results = turnover_df.to_dict('records')
 
     if item_id and results:
-        return results[0]
+        return _add_description_to_output(results[0], "turnover")
     elif not item_id:
-        return results
+        return _add_description_to_output(results, "turnover")
     else:
         return {"turnover_ratio": 0, "message": "No data for the given item ID."}
 
@@ -63,20 +119,19 @@ def calculate_stockout_rate(item_id: str = None):
     if item_id:
         query["ProductID"] = item_id
 
-    stockouts_data = get_validated_data("stockouts", SalesRecord, query) # Assuming stockouts are also sales records
-    sales_data = get_validated_data("sales", SalesRecord, query)
+    retail_data = get_validated_data(RetailData, "retail_data", query)
 
-    if not sales_data:
-        return {"error": "No sales data found for the given query."}
+    if not retail_data:
+        return {"error": "Insufficient data for calculation."}
 
-    df_stockouts = pd.DataFrame(stockouts_data).copy()
-    df_stockouts = preprocess_stockouts_data(df_stockouts)
+    df = pd.DataFrame([item.dict() for item in retail_data]).copy()
+    df = preprocess_inventory_data(df) # Preprocess the entire dataframe
 
-    df_sales = pd.DataFrame(sales_data).copy()
-    df_sales = preprocess_sales_data(df_sales)
+    # Identify stockout events: Inventory is 0 and there are Sales > 0
+    stockout_events = df[(df['Inventory'] <= 0) & (df['Sales'] > 0)]
 
-    num_stockouts = len(df_stockouts)
-    num_sales = len(df_sales)
+    num_stockouts = len(stockout_events)
+    num_sales = len(df[df['Sales'] > 0]) # Total sales records where units were sold
 
     if num_sales == 0:
         return {"stockout_rate": 0, "message": "No sales, so stockout rate is 0."}
@@ -85,15 +140,16 @@ def calculate_stockout_rate(item_id: str = None):
 
     stockout_frequency = num_stockouts
     avg_duration = 0
-    if not df_stockouts.empty:
-        if 'duration' in df_stockouts.columns:
-            avg_duration = df_stockouts['duration'].mean()
+    # If there's a 'duration' column in the original inventory data that indicates stockout duration
+    if 'duration' in stockout_events.columns:
+        avg_duration = stockout_events['duration'].mean()
 
-    return {
+    result = {
         "stockout_rate": stockout_rate,
         "stockout_frequency": stockout_frequency,
         "average_duration": avg_duration
     }
+    return _add_description_to_output(result, "stockout_rate")
 
 def calculate_stockout_heatmap_data(item_id: str = None):
     """
@@ -103,13 +159,21 @@ def calculate_stockout_heatmap_data(item_id: str = None):
     if item_id:
         query["ProductID"] = item_id
 
-    stockouts_data = get_validated_data("stockouts", SalesRecord, query)
+    retail_data = get_validated_data(RetailData, "retail_data", query)
 
-    if not stockouts_data:
+    if not retail_data:
         return []
 
-    df = pd.DataFrame([item.dict() for item in stockouts_data]).copy()
-    df = preprocess_stockouts_data(df)
+    df = pd.DataFrame([item.dict() for item in retail_data]).copy()
+    df = preprocess_inventory_data(df) # Preprocess the entire dataframe
+
+    # Identify stockout events
+    stockout_events = df[(df['Inventory'] <= 0) & (df['Sales'] > 0)]
+
+    if stockout_events.empty:
+        return []
+
+    df = stockout_events.copy()
     
     df['month'] = df['Date'].dt.to_period('M').astype(str)
     
@@ -122,54 +186,55 @@ def calculate_days_of_supply(item_id: str = None):
     Calculates the days of supply for an item or all items.
     Days of Supply = Current Inventory / Avg Daily Demand
     """
-    inventory_data = get_validated_data("inventory", InventoryItem)
-    sales_data = get_validated_data("sales", SalesRecord)
+    query = {}
+    if item_id:
+        query["ProductID"] = item_id
 
-    if not inventory_data or not sales_data:
+    retail_data = get_validated_data(RetailData, "retail_data", query)
+
+    if not retail_data:
         return {"error": "Insufficient data."}
 
-    df_inventory = pd.DataFrame(inventory_data).copy()
-    df_inventory = preprocess_inventory_data(df_inventory)
-    df_sales = pd.DataFrame(sales_data).copy()
-    df_sales = preprocess_sales_data(df_sales)
+    df = pd.DataFrame([item.dict() for item in retail_data]).copy()
+    df = preprocess_inventory_data(df) # Preprocess the entire dataframe
 
-    if 'InventoryLevel' not in df_inventory.columns or 'ProductID' not in df_inventory.columns:
-        return {"error": "Inventory data missing 'InventoryLevel' or 'ProductID'."}
+    if 'Inventory' not in df.columns or 'ProductID' not in df.columns:
+        return {"error": "Inventory data missing 'Inventory' or 'ProductID'."}
 
-    if 'UnitsSold' not in df_sales.columns or 'Date' not in df_sales.columns or 'ProductID' not in df_sales.columns:
-        return {"error": "Sales data missing 'UnitsSold', 'Date', or 'ProductID'."}
+    if 'Sales' not in df.columns or 'Date' not in df.columns or 'ProductID' not in df.columns:
+        return {"error": "Sales data missing 'Sales', 'Date', or 'ProductID'."}
     
     if item_id:
-        df_inventory = df_inventory[df_inventory['ProductID'] == item_id]
-        df_sales = df_sales[df_sales['ProductID'] == item_id]
+        df = df[df['ProductID'] == item_id]
 
-    if df_inventory.empty or df_sales.empty:
+    if df.empty:
         return {"days_of_supply": 0, "message": "No data for the given item ID."}
 
     results = []
-    for item in df_inventory['ProductID'].unique():
-        current_inventory = df_inventory[df_inventory['ProductID'] == item]['InventoryLevel'].sum()
+    for item in df['ProductID'].unique():
+        # Use the last known inventory level as current inventory
+        current_inventory = df[df['ProductID'] == item].sort_values(by='Date', ascending=False).iloc[0]['Inventory']
         
-        item_sales = df_sales[df_sales['ProductID'] == item]
+        item_sales = df[df['ProductID'] == item]
         if not item_sales.empty:
             total_days = (item_sales['Date'].max() - item_sales['Date'].min()).days
             if total_days == 0:
                 total_days = 1
-            avg_daily_demand = item_sales['UnitsSold'].sum() / total_days
+            avg_daily_demand = item_sales['Sales'].sum() / total_days
         else:
             avg_daily_demand = 0
 
         if avg_daily_demand == 0:
-            days_of_supply = float('inf')
+            days_of_supply = None
         else:
             days_of_supply = current_inventory / avg_daily_demand
         
         results.append({"item_id": item, "days_of_supply": days_of_supply})
 
     if item_id and results:
-        return results[0]
+        return _add_description_to_output(results[0], "days_of_supply")
     elif not item_id:
-        return results
+        return _add_description_to_output(results, "days_of_supply")
     else:
         return {"days_of_supply": 0, "message": "No data for the given item ID."}
 
@@ -178,35 +243,46 @@ def calculate_carrying_cost(item_id: str = None, carrying_cost_rate: float = 0.2
     Calculates the carrying cost of inventory for an item or all items.
     Carrying Cost = Avg Inventory Value * Carrying Cost Rate
     """
-    inventory_data = get_validated_data("inventory", InventoryItem)
+    query = {}
+    if item_id:
+        query["ProductID"] = item_id
 
-    if not inventory_data:
+    retail_data = get_validated_data(RetailData, "retail_data", query)
+
+    if not retail_data:
         return {"error": "No inventory data found."}
 
-    df_inventory = pd.DataFrame(inventory_data).copy()
-    df_inventory = preprocess_inventory_data(df_inventory)
+    df = pd.DataFrame([item.dict() for item in retail_data]).copy()
+    df = preprocess_inventory_data(df) # Preprocess the entire dataframe
 
-    if 'InventoryLevel' not in df_inventory.columns or 'ProductID' not in df_inventory.columns:
-        return {"error": "Inventory data missing required 'InventoryLevel' or 'ProductID' columns."}
+    if 'Inventory' not in df.columns or 'ProductID' not in df.columns:
+        return {"error": "Inventory data missing required 'Inventory' or 'ProductID' columns."}
 
     if item_id:
-        df_inventory = df_inventory[df_inventory['ProductID'] == item_id]
+        df = df[df['ProductID'] == item_id]
 
-    if df_inventory.empty:
+    if df.empty:
         return {"carrying_cost": 0, "message": "No data for the given item ID."}
 
     results = []
-    for item in df_inventory['ProductID'].unique():
-        item_inventory = df_inventory[df_inventory['ProductID'] == item]
-        inventory_value = 1 * item_inventory['InventoryLevel']
+    for item in df['ProductID'].unique():
+        item_inventory = df[df['ProductID'] == item]
+        # Use the 'cost' field if available, otherwise default to 1
+        inventory_value = item_inventory.get('cost', 1) * item_inventory['Inventory']
         avg_inventory_value = inventory_value.mean()
-        carrying_cost = avg_inventory_value * carrying_cost_rate
+        if pd.isna(avg_inventory_value):
+            avg_inventory_value = None
+        
+        if avg_inventory_value is None:
+            carrying_cost = None
+        else:
+            carrying_cost = avg_inventory_value * carrying_cost_rate
         results.append({"item_id": item, "carrying_cost": carrying_cost})
 
     if item_id and results:
-        return results[0]
+        return _add_description_to_output(results[0], "carrying_cost")
     elif not item_id:
-        return results
+        return _add_description_to_output(results, "carrying_cost")
     else:
         return {"carrying_cost": 0, "message": "No data for the given item ID."}
 
@@ -214,47 +290,73 @@ def detect_slow_obsolete_items(
     slow_turnover_threshold: float = 2.0,
     dos_threshold: int = 180,
     inactivity_days: int = 180
-):
+) -> dict:
     """
     Detects slow-moving and obsolete items based on given thresholds.
     """
-    inventory_data = get_validated_data("inventory", InventoryItem)
-    if not inventory_data:
+    retail_data = get_validated_data(RetailData, "retail_data")
+    if not retail_data:
         return {"error": "No inventory data found."}
 
-    df_inventory = pd.DataFrame(inventory_data).copy()
-    print("Columns before preprocessing:", df_inventory.columns) # Debug print
-    df_inventory = preprocess_inventory_data(df_inventory)
-    print("Columns after preprocessing:", df_inventory.columns) # Debug print
-    all_item_ids = df_inventory['ProductID'].unique()
+    df = pd.DataFrame([item.dict() for item in retail_data]).copy()
+    df = preprocess_inventory_data(df)
+    df['Date'] = pd.to_datetime(df['Date'])
 
-    slow_movers = []
-    obsolete_items = []
+    # Calculate turnover ratio for each item
+    df['COGS'] = df['Sales'] * df['Price']
+    if 'cost' not in df.columns:
+        df['cost'] = df['Price'] * 0.8
+    df['InventoryValue'] = df['Inventory'] * df['cost']
+    
+    avg_inventory_value = df.groupby('ProductID')['InventoryValue'].mean()
+    total_cogs = df.groupby('ProductID')['COGS'].sum()
+    
+    turnover_ratio = (total_cogs / avg_inventory_value).reset_index(name='turnover_ratio')
+    turnover_ratio.replace([float('inf'), -float('inf')], None, inplace=True)
+    turnover_ratio.fillna(float('inf'), inplace=True)
 
-    for item_id in all_item_ids:
-        turnover_result = calculate_turnover(item_id)
-        dos_result = calculate_days_of_supply(item_id)
 
-        if not isinstance(turnover_result, dict) or 'error' in turnover_result:
-            continue
+    # Calculate days of supply for each item
+    current_inventory = df.loc[df.groupby('ProductID')['Date'].idxmax()][['ProductID', 'Inventory']]
+    current_inventory.rename(columns={'Inventory': 'current_inventory'}, inplace=True)
+    
+    sales_data = df.groupby('ProductID').agg(
+        total_sales=('Sales', 'sum'),
+        min_date=('Date', 'min'),
+        max_date=('Date', 'max')
+    ).reset_index()
 
-        if not isinstance(dos_result, dict) or 'error' in dos_result:
-            continue
+    sales_data['duration_days'] = (sales_data['max_date'] - sales_data['min_date']).dt.days
+    sales_data['duration_days'] = sales_data['duration_days'].apply(lambda x: 1 if x == 0 else x)
+    sales_data['avg_daily_demand'] = sales_data['total_sales'] / sales_data['duration_days']
 
-        if turnover_result.get('turnover_ratio', float('inf')) < slow_turnover_threshold or \
-           dos_result.get('days_of_supply', 0) > dos_threshold:
-            slow_movers.append(item_id)
+    dos_df = pd.merge(current_inventory, sales_data, on='ProductID')
+    dos_df['days_of_supply'] = dos_df['current_inventory'] / dos_df['avg_daily_demand']
+    dos_df['days_of_supply'].replace([float('inf'), -float('inf')], None, inplace=True)
+    dos_df.fillna(0, inplace=True)
 
-        sales_data = get_validated_data("sales", SalesRecord, {"ProductID": item_id})
-        if not sales_data:
-            obsolete_items.append(item_id)
-            continue
 
-        df_sales = pd.DataFrame(sales_data).copy()
-        df_sales['Date'] = pd.to_datetime(df_sales['Date'])
-        last_sale_date = df_sales['Date'].max()
+    # Merge metrics
+    metrics_df = pd.merge(turnover_ratio, dos_df[['ProductID', 'days_of_supply']], on='ProductID', how='left')
+    metrics_df.rename(columns={'ProductID': 'item_id'}, inplace=True)
 
-        if last_sale_date < datetime.now() - timedelta(days=inactivity_days):
-            obsolete_items.append(item_id)
+    # Detect slow movers
+    slow_movers = metrics_df[
+        (metrics_df['turnover_ratio'] < slow_turnover_threshold) |
+        (metrics_df['days_of_supply'] > dos_threshold)
+    ]['item_id'].tolist()
 
-    return {"slow_movers": slow_movers, "obsolete_items": obsolete_items}
+    # Detect obsolete items
+    last_sale_dates = df.groupby('ProductID')['Date'].max().reset_index()
+    obsolete_threshold_date = datetime.now() - timedelta(days=inactivity_days)
+    obsolete_items = last_sale_dates[
+        last_sale_dates['Date'] < obsolete_threshold_date
+    ]['ProductID'].tolist()
+
+    # Items with no sales data are also obsolete
+    items_with_sales = df[df['Sales'] > 0]['ProductID'].unique()
+    all_items = df['ProductID'].unique()
+    items_without_sales = list(set(all_items) - set(items_with_sales))
+    obsolete_items.extend(items_without_sales)
+
+    return {"slow_movers": list(set(slow_movers)), "obsolete_items": list(set(obsolete_items))}
