@@ -98,15 +98,20 @@ def calculate_turnover(item_id: str = None, category: str = None, abc_class: str
     cogs_over_time = df['COGS'].resample(period[0].upper()).sum()
 
     turnover_df = (cogs_over_time / avg_inventory_value).reset_index()
-    turnover_df.rename(columns={0: 'turnover_ratio'}, inplace=True)
+    turnover_df.rename(columns={'COGS': 'turnover_ratio'}, inplace=True)
     turnover_df.replace([float('inf'), -float('inf')], None, inplace=True)
 
     results = turnover_df.to_dict('records')
 
+    if not results:
+        return {"turnover_ratio": 0, "message": "No data for the given period."}
+
     if item_id and results:
         return _add_description_to_output(results[0], "turnover")
-    elif not item_id:
-        return _add_description_to_output(results, "turnover")
+    elif not item_id and results:
+        # Calculate the average turnover ratio for all items
+        avg_turnover = pd.DataFrame(results)['turnover_ratio'].mean()
+        return _add_description_to_output({"turnover_ratio": avg_turnover}, "turnover")
     else:
         return {"turnover_ratio": 0, "message": "No data for the given item ID."}
 

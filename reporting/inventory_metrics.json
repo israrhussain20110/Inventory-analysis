@@ -1,0 +1,18 @@
+{
+    "turnover": {
+        "turnover_ratio": 1814.2805007719753,
+        "description": "This section provides a time-series view of the Cost of Goods Sold (COGS) over different periods (e.g., monthly). Inventory turnover is a critical efficiency ratio that measures how many times inventory is sold or used in a given period. While the raw turnover ratio (COGS / Average Inventory Value) is not directly present in this specific output, the COGS data over time is a key component for its calculation."
+    },
+    "stockout_rate": {
+        "stockout_rate": 0.0,
+        "stockout_frequency": 0,
+        "average_duration": 0,
+        "description": "This section quantifies the occurrence and impact of stockouts, which happen when demand for an item cannot be met due to insufficient inventory. It provides a summary of stockout events across the analyzed data."
+    },
+    "days_of_supply": {
+        "days_of_supply": 0.3905432927731488
+    },
+    "carrying_cost": {
+        "carrying_cost": 2426.2130786320113
+    }
+}

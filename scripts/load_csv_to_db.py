@@ -37,8 +37,8 @@ def calculate_abc_class(df):
     return df
 
 def convert_nan_to_none(df: pd.DataFrame, model: BaseModel) -> pd.DataFrame:
-    for field_name, field in model.__fields__.items():
-        if field.required is False and field_name in df.columns: # Check if it's an Optional field
+    for field_name, field in model.model_fields.items():
+        if not field.is_required() and field_name in df.columns: # Check if it's an Optional field
             # Handle pandas.NA and numpy.nan for numeric and object types
             if pd.api.types.is_numeric_dtype(df[field_name]):
                 df[field_name] = df[field_name].replace({pd.NA: None, float('nan'): None})
